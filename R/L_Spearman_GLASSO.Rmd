@@ -1,0 +1,162 @@
+
+
+```{r}
+# Load required libraries
+library(farver)
+library(dplyr)   # Data transformation and manipulation
+library(ggplot2) # Plotting
+library(qgraph)  # Estimate networks
+library(bootnet) # Stability analysis on networks
+library(huge)    # Transformation of non-normal data
+
+# Load the dataset
+df <- read.csv("aggregated_data_wide_3_months.csv")
+data <- df
+
+# Adjust column names for matching
+adjusted_colnames <- gsub("\\.", "_", colnames(data))  # Replace periods with underscores
+adjusted_colnames <- gsub("^X", "", adjusted_colnames)   # Remove the "X" prefix
+colnames(data) <- adjusted_colnames  # Apply adjusted column names
+
+# Separate data by time points using updated regular expressions to match patterns
+data_T1 <- data %>% dplyr::select(matches("^2019_07.*(BDI|LSAS|CFS)"))
+data_T2 <- data %>% dplyr::select(matches("^2020_01.*(BDI|LSAS|CFS)"))
+data_T3 <- data %>% dplyr::select(matches("^2020_05.*(BDI|LSAS|CFS)"))
+
+# Ensure consistent prefixes indicating time points
+colnames(data_T1) <- gsub("^2019_07_", "T1_", colnames(data_T1))
+colnames(data_T2) <- gsub("^2020_01_", "T2_", colnames(data_T2))
+colnames(data_T3) <- gsub("^2020_05_", "T3_", colnames(data_T3))
+
+# Remove rows with missing values for network estimation
+data_T1 <- data_T1[complete.cases(data_T1), ]
+data_T2 <- data_T2[complete.cases(data_T2), ]
+data_T3 <- data_T3[complete.cases(data_T3), ]
+
+# Define function to generate symptom structure
+get_symptom_structure <- function(data_time) {
+  list(
+    "BDI" = which(grepl("BDI", names(data_time))),
+    "LSAS" = which(grepl("LSAS", names(data_time))),
+    "CFS" = which(grepl("CFS", names(data_time)))
+  )
+}
+
+# Generate symptom structure for each time point
+symptom_structure_T1 <- get_symptom_structure(data_T1)
+symptom_structure_T2 <- get_symptom_structure(data_T2)
+symptom_structure_T3 <- get_symptom_structure(data_T3)
+
+# Function to estimate and plot network for a given time point
+estimate_and_plot_network <- function(data_time, time_label, symptom_structure) {
+  data_npn <- huge.npn(data_time, npn.func = "skeptic")
+  network <- qgraph(
+    data_npn,
+    graph = "glasso",
+    tuning = 0.4,
+    sampleSize = nrow(data_time),
+    layout = "spring",
+    groups = symptom_structure,
+    color = c("lightblue", "orange", "lightgreen"),
+    labels = colnames(data_npn)
+  )
+  title(main = paste("Network at", time_label))
+  return(network)
+}
+
+# Estimate and plot networks for each time point
+network_T1 <- estimate_and_plot_network(data_T1, "Time 1", symptom_structure_T1)
+network_T2 <- estimate_and_plot_network(data_T2, "Time 2", symptom_structure_T2)
+network_T3 <- estimate_and_plot_network(data_T3, "Time 3", symptom_structure_T3)
+
+# Compute change trajectories using OLS regression
+change_trajectories <- data.frame(matrix(ncol = ncol(data_T1), nrow = nrow(data)))
+colnames(change_trajectories) <- colnames(data_T1)
+
+# Impute missing values with column means for OLS regression
+data_imputed <- data %>% dplyr::mutate(across(everything(), ~ ifelse(is.na(.), mean(., na.rm = TRUE), .)))
+
+# Extract base names (without prefixes) from change_trajectories
+base_names <- gsub("^T[123]_", "", colnames(change_trajectories))
+for (i in seq_along(base_names)) {
+  # Extract data for the current variable across time points
+  selected_data <- data_imputed[, c(paste0("2019_07_", base_names[i]),
+                                    paste0("2020_01_", base_names[i]),
+                                    paste0("2020_05_", base_names[i]))]
+  
+  # Transpose selected_data to ensure each row is an observation across time points
+  selected_data <- t(selected_data)
+  
+  # Perform OLS regression for each participant (column in transposed data)
+  for (j in 1:ncol(selected_data)) {
+    model <- lm(selected_data[, j] ~ c(1, 2, 3))
+    change_trajectories[j, i] <- coef(model)[2]  # Slope of change trajectory
+  }
+}
+
+
+# Generate symptom structure for change trajectories
+symptom_structure_slope <- get_symptom_structure(change_trajectories)
+
+# Non-paranormal transformation of change trajectories
+data_npn_slope <- huge.npn(change_trajectories, npn.func = "skeptic")
+
+# Estimate network of change trajectories
+network_slope <- qgraph(
+  data_npn_slope,
+  graph = "glasso",
+  tuning = 0.4,
+  sampleSize = nrow(change_trajectories),
+  layout = "spring",
+  groups = symptom_structure_slope,
+  color = c("lightblue", "orange", "lightgreen"),
+  labels = colnames(data_npn_slope)
+)
+title(main = "Network of Change Trajectories")
+
+# Compute centrality measures for each network
+centrality_T1 <- centrality_auto(network_T1)
+centrality_T2 <- centrality_auto(network_T2)
+centrality_T3 <- centrality_auto(network_T3)
+centrality_slope <- centrality_auto(network_slope)
+
+# Bootstrapping for edge-weight stability at each time point
+set.seed(123)
+boot_T1 <- bootnet(data_T1, default = "EBICglasso", tuning = 0.4, nBoots = 1000, type = "nonparametric", lambda.min.ratio = 0.2)
+boot_T2 <- bootnet(data_T2, default = "EBICglasso", tuning = 0.4, nBoots = 1000, type = "nonparametric", lambda.min.ratio = 0.2)
+boot_T3 <- bootnet(data_T3, default = "EBICglasso", tuning = 0.4, nBoots = 1000, type = "nonparametric", lambda.min.ratio = 0.2)
+boot_slope <- bootnet(change_trajectories, default = "EBICglasso", tuning = 0.4, nBoots = 1000, type = "nonparametric", lambda.min.ratio = 0.2)
+
+# Plot bootstrapped edge-weight stability
+plot(boot_T1, order = "sample", labels = FALSE)
+plot(boot_T2, order = "sample", labels = FALSE)
+plot(boot_T3, order = "sample", labels = FALSE)
+plot(boot_slope, order = "sample", labels = FALSE)
+
+# Centrality stability analysis for each network
+boot_centrality_T1 <- bootnet(data_T1, default = "EBICglasso", tuning = 0.4, nBoots = 1000, type = "case", statistics = c("strength", "closeness", "betweenness"), lambda.min.ratio = 0.2)
+boot_centrality_T2 <- bootnet(data_T2, default = "EBICglasso", tuning = 0.4, nBoots = 1000, type = "case", statistics = c("strength", "closeness", "betweenness"), lambda.min.ratio = 0.2)
+boot_centrality_T3 <- bootnet(data_T3, default = "EBICglasso", tuning = 0.4, nBoots = 1000, type = "case", statistics = c("strength", "closeness", "betweenness"), lambda.min.ratio = 0.2)
+boot_centrality_slope <- bootnet(change_trajectories, default = "EBICglasso", tuning = 0.4, nBoots = 1000, type = "case", statistics = c("strength", "closeness", "betweenness"), lambda.min.ratio = 0.2)
+
+# Plot centrality stability
+plot(boot_centrality_T1, statistics = "all")
+plot(boot_centrality_T2, statistics = "all")
+plot(boot_centrality_T3, statistics = "all")
+plot(boot_centrality_slope, statistics = "all")
+
+# Report stability coefficients
+corStability(boot_centrality_T1)
+corStability(boot_centrality_T2)
+corStability(boot_centrality_T3)
+corStability(boot_centrality_slope)
+
+# Bridge centrality stability
+boot_bridge_T1 <- bootnet(data_T1, default = "EBICglasso", tuning = 0.4, nBoots = 1000, type = "case", lambda.min.ratio = 0.2, statistics = c("bridgeStrength", "bridgeExpectedInfluence", "bridgeCloseness", "bridgeBetweenness"), communities = symptom_structure_T1)
+boot_bridge_T2 <- bootnet(data_T2, default = "EBICglasso", tuning = 0.4, nBoots = 1000, type = "case", lambda.min.ratio = 0.2, statistics = c("bridgeStrength", "bridgeExpectedInfluence", "bridgeCloseness", "bridgeBetweenness"), communities = symptom_structure_T2)
+boot_bridge_T3 <- bootnet(data_T3, default = "EBICglasso", tuning = 0.4, nBoots = 1000, type = "case", lambda.min.ratio = 0.2, statistics = c("bridgeStrength", "bridgeExpectedInfluence", "bridgeCloseness", "bridgeBetweenness"), communities = symptom_structure_T3)
+```
+
+
+```
+

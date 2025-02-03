@@ -1,0 +1,164 @@
+
+# Load Required Libraries
+library(farver)
+library(dplyr)
+library(ggplot2)
+library(qgraph)
+library(bootnet)
+library(huge)
+library(networktools)
+library(igraph)
+library(polycor)
+library(psych)
+library(huge)
+library(readr)
+
+
+# Load Dataset and Preprocess
+data_T1 <- read_csv("df_1.csv")
+data_T2 <- read_csv("df_2.csv")
+data_T3 <- read_csv("df_3.csv")
+data_OLS <- read_csv("df_change.csv")
+
+data_T1 <- na.omit(data_T1)
+data_T2 <- na.omit(data_T2)
+data_T3 <- na.omit(data_T3)
+```
+# Get OLS change trajectories
+# Compute OLS change trajectories
+
+df <- read_csv("aggregated_data_wide_3_months_unstandardized_FIRST.csv")
+
+change_trajectories <- data.frame(matrix(ncol = ncol(data_T1), nrow = nrow(df)))
+colnames(change_trajectories) <- colnames(data_T1)
+
+# Impute missing values with column means for OLS regression
+data_imputed <- df %>% dplyr::mutate(across(everything(), ~ ifelse(is.na(.), mean(., na.rm = TRUE), .)))
+
+# Extract base names (without prefixes) from change_trajectories
+base_names <- gsub("^(2019-07_|2020-01_|2020-05_)", "", colnames(change_trajectories))
+
+for (i in seq_along(base_names)) {
+  # Extract data for the current variable across time points
+  selected_data <- data_imputed[, c(paste0("2019-07_", base_names[i]),
+                                    paste0("2020-01_", base_names[i]),
+                                    paste0("2020-05_", base_names[i]))]
+  
+  # Transpose selected_data to ensure rows represent time points
+  selected_data <- t(selected_data)
+  
+  # Perform OLS regression for each participant
+  for (j in 1:ncol(selected_data)) {
+    model <- lm(selected_data[, j] ~ c(1, 2, 3))  # Time points: 1, 2, 3
+    change_trajectories[j, i] <- coef(model)[2]   # Store slope (coefficient for time)
+  }
+}
+
+cor_OLS <- cor(change_trajectories, method = "spearman", use = "pairwise.complete.obs")
+network_OLS <- EBICglasso(cor_OLS, n = nrow(change_trajectories))
+
+
+cor_T1 <- cor(data_T1, method = "spearman")
+network_T1 <- EBICglasso(cor_T1, n = nrow(data_T1))
+
+cor_T2 <- cor(data_T2, method = "spearman")
+network_T2 <- EBICglasso(cor_T2, n = nrow(data_T2))
+
+cor_T3 <- cor(data_T3, method = "spearman")
+network_T3 <- EBICglasso(cor_T3, n = nrow(data_T3))
+
+# Plot networks 
+par(mfrow = c(2, 2))
+groups <- list(BDI = which(grepl("BDI", colnames(data_T1))),
+               LSAS = which(grepl("LSAS", colnames(data_T1))),
+               CFS = which(grepl("CFS", colnames(data_T1))))
+
+# Convert matrices to qgraph objects
+network_T1 <- qgraph(EBICglasso(cor(data_T1, method = "spearman"), n = nrow(data_T1)), 
+                     layout = "spring", groups = groups, color = c("lightblue", "green", "orange"), title = "T1")
+
+network_T2 <- qgraph(EBICglasso(cor(data_T2, method = "spearman"), n = nrow(data_T2)), 
+                     layout = "spring", groups = groups, color = c("lightblue", "green", "orange"), title = "T2")
+
+network_T3 <- qgraph(EBICglasso(cor(data_T3, method = "spearman"), n = nrow(data_T3)), 
+                     layout = "spring", groups = groups, color = c("lightblue", "green", "orange"), title = "T3")
+
+network_OLS <- qgraph(network_OLS, layout = "spring", groups = groups, color = c("lightblue", "green", "orange"), title = "OLS Change Trajectories")
+
+
+# Centrality Measures
+## Strength, Closeness, and Betweenness
+centralityPlot(network_T1, include = c("all"), scale = c("z-scores"))
+centralityPlot(network_T2, include = c("all"), scale = c("z-scores"))
+centralityPlot(network_T3, include = c("all"), scale = c("z-scores"))
+centralityPlot(network_OLS, include = c("all"), scale = c("z-scores"))
+
+
+# Bridge Centrality Measures
+## Bridge Strength, Bridge Closeness, and Bridge Betweenness
+
+get_communities <- function(network) {
+  # Convert the qgraph object to an igraph object
+  igraph_network <- as.igraph(network)
+  
+  # Ensure all edge weights are non-negative
+  E(igraph_network)$weight <- pmax(E(igraph_network)$weight, 0, na.rm = TRUE)
+  
+  # Perform the community detection using Walktrap clustering
+  cluster <- cluster_walktrap(igraph_network)
+  
+  # Return the membership of each node in the clusters
+  return(membership(cluster))
+}
+
+# Apply the function to get the communities
+communities_T1 <- get_communities(network_T1)
+communities_T2 <- get_communities(network_T2)
+communities_T3 <- get_communities(network_T3)
+communities_OLS <- get_communities(network_OLS)
+
+# Compute bridge centrality with predefined communities
+bridge_T1 <- bridge(network_T1, communities = communities_T1)
+bridge_T2 <- bridge(network_T2, communities = communities_T2)
+bridge_T3 <- bridge(network_T3, communities = communities_T3)
+bridge_OLS <- bridge(network_OLS, communities = communities_OLS)
+
+# Plot bridge centrality measures manually
+par(mfrow = c(3, 4))
+plot(bridge_T1$`Bridge Strength`, main = "T1 Bridge Strength", type = "b", ylim = c(0, max(bridge_T1$`Bridge Strength`)))
+plot(bridge_T2$`Bridge Strength`, main = "T2 Bridge Strength", type = "b", ylim = c(0, max(bridge_T2$`Bridge Strength`)))
+plot(bridge_T3$`Bridge Strength`, main = "T3 Bridge Strength", type = "b", ylim = c(0, max(bridge_T3$`Bridge Strength`)))
+plot(bridge_OLS$`Bridge Strength`, main = "OLS Bridge Strength", type = "b", ylim = c(0, max(bridge_OLS$`Bridge Strength`)))
+
+plot(bridge_T1$`Bridge Closeness`, main = "T1 Bridge Closeness", type = "b", ylim = c(0, max(bridge_T1$`Bridge Closeness`)))
+plot(bridge_T2$`Bridge Closeness`, main = "T2 Bridge Closeness", type = "b", ylim = c(0, max(bridge_T2$`Bridge Closeness`)))
+plot(bridge_T3$`Bridge Closeness`, main = "T3 Bridge Closeness", type = "b", ylim = c(0, max(bridge_T3$`Bridge Closeness`)))
+plot(bridge_OLS$`Bridge Closeness`, main = "OLS Bridge Closeness", type = "b", ylim = c(0, max(bridge_OLS$`Bridge Closeness`)))
+
+plot(bridge_T1$`Bridge Betweenness`, main = "T1 Bridge Betweenness", type = "b", ylim = c(0, max(bridge_T1$`Bridge Betweenness`)))
+plot(bridge_T2$`Bridge Betweenness`, main = "T2 Bridge Betweenness", type = "b", ylim = c(0, max(bridge_T2$`Bridge Betweenness`)))
+plot(bridge_T3$`Bridge Betweenness`, main = "T3 Bridge Betweenness", type = "b", ylim = c(0, max(bridge_T3$`Bridge Betweenness`)))
+plot(bridge_OLS$`Bridge Betweenness`, main = "OLS Bridge Betweenness", type = "b", ylim = c(0, max(bridge_OLS$`Bridge Betweenness`)))
+
+
+
+
+# Edge Stability Analysis
+# Perform edge stability analysis using bootnet
+
+boot_T1 <- bootnet(network_T1)
+boot_T2 <- bootnet(network_T2, nBoots = 1000)
+boot_T3 <- bootnet(network_T3, nBoots = 1000)
+boot_OLS <- bootnet(network_OLS, nBoots = 1000)
+
+# Plot edge stability
+plot(boot_T1, title = "T1 Edge Stability")
+plot(boot_T2, title = "T2 Edge Stability")
+plot(boot_T3, title = "T3 Edge Stability")
+plot(boot_OLS, title = "OLS Edge Stability")
+```
+
+# OLS Change Trajectory Coefficients
+# Plot OLS coefficients
+par(mfrow = c(1, 1))
+plot(change_trajectories, type = "b", main = "OLS Change Trajectories")

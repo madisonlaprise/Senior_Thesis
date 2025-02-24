@@ -1,38 +1,36 @@
 ---
-title: "Golden"
+title: "Golden - Network Evolution Across Time"
 output: html_document
 date: "2025-02-02"
 ---
 # Load Required Libraries
-```{r}
-library(farver)
-library(dplyr)
-library(ggplot2)
-library(qgraph)
-library(bootnet)
-library(huge)
-library(networktools)
-library(igraph)
-library(polycor)
-library(psych)
-library(huge)
-library(readr)
+```{r echo=TRUE, message=FALSE}
+suppressMessages(library(farver))
+suppressMessages(library(dplyr))
+suppressMessages(library(ggplot2))
+suppressMessages(library(qgraph))
+suppressMessages(library(bootnet))
+suppressMessages(library(huge))
+suppressMessages(library(networktools))
+suppressMessages(library(igraph))
+suppressMessages(library(polycor))
+suppressMessages(library(psych))
+suppressMessages(library(readr))
 
 ```
 
 # Load Dataset and Preprocess
-```{r}
-data_T1 <- read_csv("df_T1.csv")
-data_T2 <- read_csv("df_T2.csv")
-data_T3 <- read_csv("df_T3.csv")
-data_OLS <- read_csv("df_change.csv")
+```{r echo=TRUE, message=FALSE}
+data_T1 <- read_csv("df_1.csv")
+data_T2 <- read_csv("df_2.csv")
+data_T3 <- read_csv("df_3.csv")
 
 data_T1 <- na.omit(data_T1)
 data_T2 <- na.omit(data_T2)
 data_T3 <- na.omit(data_T3)
 ```
 # Get OLS change trajectories
-```{r}
+```{r echo=TRUE, message=FALSE, warning=FALSE}
 # Compute OLS change trajectories
 
 df <- read_csv("aggregated_data_wide_3_months_unstandardized_FIRST.csv")
@@ -67,7 +65,7 @@ network_OLS <- EBICglasso(cor_OLS, n = nrow(change_trajectories))
 
 ```
 
-```{r}
+```{r echo=TRUE, message=FALSE, warning=FALSE}
 
 cor_T1 <- cor(data_T1, method = "spearman")
 network_T1 <- EBICglasso(cor_T1, n = nrow(data_T1))
@@ -80,7 +78,7 @@ network_T3 <- EBICglasso(cor_T3, n = nrow(data_T3))
 
 ```
 
-```{r}
+```{r echo=TRUE, message=FALSE, warning=FALSE}
 # Plot networks 
 par(mfrow = c(2, 2))
 groups <- list(BDI = which(grepl("BDI", colnames(data_T1))),
@@ -104,7 +102,7 @@ network_OLS <- qgraph(network_OLS, layout = "spring", groups = groups, color = c
 
 # Centrality Measures
 ## Strength, Closeness, and Betweenness
-```{r}
+```{r echo=TRUE, message=FALSE}
 centralityPlot(network_T1, include = c("all"), scale = c("z-scores"))
 centralityPlot(network_T2, include = c("all"), scale = c("z-scores"))
 centralityPlot(network_T3, include = c("all"), scale = c("z-scores"))
@@ -114,7 +112,7 @@ centralityPlot(network_OLS, include = c("all"), scale = c("z-scores"))
 # Bridge Centrality Measures
 ## Bridge Strength, Bridge Closeness, and Bridge Betweenness
 
-```{r}
+```{r echo=TRUE, message=FALSE}
 
 get_communities <- function(network) {
   # Convert the qgraph object to an igraph object
@@ -160,88 +158,7 @@ plot(bridge_T3$`Bridge Betweenness`, main = "T3 Bridge Betweenness", type = "b",
 plot(bridge_OLS$`Bridge Betweenness`, main = "OLS Bridge Betweenness", type = "b", ylim = c(0, max(bridge_OLS$`Bridge Betweenness`)))
 
 ```
-```{r}
-# Load required packages
 
 
-library(qgraph)
-library(igraph)
 
-# Extract adjacency matrices from qgraph objects
-adj_T1 <- getWmat(network_T1)
-adj_T2 <- getWmat(network_T2)
-adj_T3 <- getWmat(network_T3)
-
-# Extract node names
-nodes_T1 <- colnames(adj_T1)
-nodes_T2 <- colnames(adj_T2)
-nodes_T3 <- colnames(adj_T3)
-
-# Combine nodes across time points
-all_nodes <- unique(c(paste0(nodes_T1, "_T1"), paste0(nodes_T2, "_T2"), paste0(nodes_T3, "_T3")))
-
-# Create edges between time points (assuming all nodes influence the same node across time)
-edges <- data.frame(
-  from = rep(paste0(nodes_T1, "_T1"), each = length(nodes_T2)),
-  to = rep(paste0(nodes_T2, "_T2"), times = length(nodes_T1))
-)
-
-# Add edges from T2 to T3
-edges <- rbind(edges, data.frame(
-  from = rep(paste0(nodes_T2, "_T2"), each = length(nodes_T3)),
-  to = rep(paste0(nodes_T3, "_T3"), times = length(nodes_T2))
-))
-# Create igraph object from edges
-g <- graph_from_data_frame(edges, vertices = all_nodes, directed = TRUE)
-
-# Plot the graph
-plot(g, 
-     vertex.color = "lightblue", 
-     vertex.size = 30, 
-     vertex.label.cex = 0.7, 
-     edge.arrow.size = 0.5,
-     main = "Symptom Network DAG Over Time")
-```
-
-
-```{r}
-# Load required packages
-
-
-library(qgraph)
-library(igraph)
-
-# Extract adjacency matrices from qgraph objects
-adj_T1 <- getWmat(network_T1)
-adj_T2 <- getWmat(network_T2)
-adj_T3 <- getWmat(network_T3)
-
-# Extract node names
-nodes_T1 <- colnames(adj_T1)
-nodes_T2 <- colnames(adj_T2)
-nodes_T3 <- colnames(adj_T3)
-
-# Combine nodes with time labels
-all_nodes <- c(paste0(nodes_T1, "_T1"), paste0(nodes_T2, "_T2"), paste0(nodes_T3, "_T3"))
-
-# Create edges by linking the same items across time points
-edges <- data.frame(
-  from = c(paste0(nodes_T1, "_T1"), paste0(nodes_T2, "_T2")),
-  to   = c(paste0(nodes_T1, "_T2"), paste0(nodes_T2, "_T3"))
-)
-
-# Create igraph object
-g <- graph_from_data_frame(edges, vertices = all_nodes, directed = TRUE)
-
-# Plot the graph with a hierarchical layout
-plot(g,
-     layout = layout_as_tree(g, root = grep("_T1", all_nodes)),
-     vertex.color = "lightblue",
-     vertex.size = 25,
-     vertex.label.cex = 0.7,
-     edge.arrow.size = 0.5,
-     main = "Symptom Network DAG Over Time")
-
-
-```
 

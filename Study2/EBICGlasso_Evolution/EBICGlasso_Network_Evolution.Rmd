@@ -1,0 +1,124 @@
+---
+title: "EBICGlasso Network Evolution"
+output: html_document
+date: "2025-03-11"
+---
+# Load Required Libraries
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+suppressMessages(library(farver))
+suppressMessages(library(dplyr))
+suppressMessages(library(ggplot2))
+suppressMessages(library(qgraph))
+suppressMessages(library(bootnet))
+suppressMessages(library(huge))
+suppressMessages(library(networktools))
+suppressMessages(library(igraph))
+suppressMessages(library(polycor))
+suppressMessages(library(psych))
+suppressMessages(library(readr))
+suppressMessages(library(stringr))
+```
+
+# Load Dataset and Preprocess
+```{r echo=TRUE, message=FALSE}
+data_T1 <- read_csv("df_1.csv")
+data_T2 <- read_csv("df_2.csv")
+data_T3 <- read_csv("df_3.csv")
+
+data_T1 <- na.omit(data_T1)
+data_T2 <- na.omit(data_T2)
+data_T3 <- na.omit(data_T3)
+
+```
+# Get OLS change trajectories
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Load necessary libraries
+# Read in the data
+
+df <- read_csv("OLS_ready.csv")
+
+change_trajectories <- data.frame(matrix(ncol = ncol(data_T1), nrow = nrow(df)))
+colnames(change_trajectories) <- colnames(data_T1)
+
+# Impute missing values with column means for OLS regression
+data_imputed <- df %>% dplyr::mutate(across(everything(), ~ ifelse(is.na(.), mean(., na.rm = TRUE), .)))
+
+# Extract base names (without prefixes) from change_trajectories
+base_names <- gsub("^(2020-01_|2020-05_|2020-09_)", "", colnames(change_trajectories))
+
+for (i in seq_along(base_names)) {
+  # Extract data for the current variable across time points
+  selected_data <- data_imputed[, c(paste0("2020-01_", base_names[i]),
+                                    paste0("2020-05_", base_names[i]),
+                                    paste0("2020-09_", base_names[i]))]
+  
+  # Transpose selected_data to ensure rows represent time points
+  selected_data <- t(selected_data)
+  
+  # Perform OLS regression for each participant
+  for (j in 1:ncol(selected_data)) {
+    model <- lm(selected_data[, j] ~ c(1, 2, 3))  # Time points: 1, 2, 3
+    change_trajectories[j, i] <- coef(model)[2]   # Store slope (coefficient for time)
+  }
+}
+```
+# Compute Correlation Matricies and Networks
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+cor_OLS <- cor(change_trajectories, method = "spearman", use = "pairwise.complete.obs")
+network_OLS <- EBICglasso(cor_OLS, n = nrow(change_trajectories))
+
+cor_T1 <- cor(data_T1, method = "spearman")
+network_T1 <- EBICglasso(cor_T1, n = nrow(data_T1))
+
+cor_T2 <- cor(data_T2, method = "spearman")
+network_T2 <- EBICglasso(cor_T2, n = nrow(data_T2))
+
+cor_T3 <- cor(data_T3, method = "spearman")
+network_T3 <- EBICglasso(cor_T3, n = nrow(data_T3))
+
+```
+
+# Plot Networks
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Plot networks 
+par(mfrow = c(2, 2))
+groups <- list(BDI = which(grepl("BDI", colnames(data_T1))),
+               LSAS = which(grepl("LSAS", colnames(data_T1))),
+               CFS = which(grepl("CFS", colnames(data_T1))))
+
+# Convert matrices to qgraph objects
+network_T1 <- qgraph(EBICglasso(cor(data_T1, method = "spearman"), n = nrow(data_T1)), 
+                     layout = "spring", groups = groups, color = c("lightblue", "green", "orange"), title = "T1")
+
+network_T2 <- qgraph(EBICglasso(cor(data_T2, method = "spearman"), n = nrow(data_T2)), 
+                     layout = "spring", groups = groups, color = c("lightblue", "green", "orange"), title = "T2")
+
+network_T3 <- qgraph(EBICglasso(cor(data_T3, method = "spearman"), n = nrow(data_T3)), 
+                     layout = "spring", groups = groups, color = c("lightblue", "green", "orange"), title = "T3")
+
+network_OLS <- qgraph(network_OLS, layout = "spring", groups = groups, color = c("lightblue", "green", "orange"), title = "OLS Change Trajectories")
+
+```
+# Compute Strength Centrality
+```{r}
+# Function to extract and display only strength centrality without extra columns
+get_strength_table <- function(network, timepoint) {
+  centrality_df <- centralityTable(network) %>%
+    filter(measure == "Strength") %>%
+    select(-type, -graph)  # Remove the Type and Graph columns
+  
+  cat("\n### Strength Centrality -", timepoint, "###\n")
+  print(centrality_df)
+}
+
+# Display strength centrality tables with timepoint titles
+get_strength_table(network_T1, "T1")
+get_strength_table(network_T2, "T2")
+get_strength_table(network_T3, "T3")
+get_strength_table(network_OLS, "OLS")
+```
+
+
+
+
+

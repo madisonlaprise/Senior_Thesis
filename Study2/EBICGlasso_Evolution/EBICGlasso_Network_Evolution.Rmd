@@ -18,12 +18,15 @@ suppressMessages(library(psych))
 suppressMessages(library(readr))
 suppressMessages(library(stringr))
 ```
+```{r}
+
+```
 
 # Load Dataset and Preprocess
 ```{r echo=TRUE, message=FALSE}
-data_T1 <- read_csv("df_1.csv")
-data_T2 <- read_csv("df_2.csv")
-data_T3 <- read_csv("df_3.csv")
+data_T1 <- read_csv("df_1.csv", show_col_types = FALSE)
+data_T2 <- read_csv("df_2.csv", show_col_types = FALSE)
+data_T3 <- read_csv("df_3.csv", show_col_types = FALSE)
 
 data_T1 <- na.omit(data_T1)
 data_T2 <- na.omit(data_T2)
@@ -35,7 +38,7 @@ data_T3 <- na.omit(data_T3)
 # Load necessary libraries
 # Read in the data
 
-df <- read_csv("OLS_ready.csv")
+df <- read_csv("OLS_ready.csv", show_col_types = FALSE)
 
 change_trajectories <- data.frame(matrix(ncol = ncol(data_T1), nrow = nrow(df)))
 colnames(change_trajectories) <- colnames(data_T1)
@@ -100,7 +103,7 @@ network_OLS <- qgraph(network_OLS, layout = "spring", groups = groups, color = c
 
 ```
 # Compute Strength Centrality
-```{r}
+```{r echo=TRUE, message=FALSE, warning=FALSE}
 # Function to extract and display only strength centrality without extra columns
 get_strength_table <- function(network, timepoint) {
   centrality_df <- centralityTable(network) %>%
@@ -118,6 +121,127 @@ get_strength_table(network_T3, "T3")
 get_strength_table(network_OLS, "OLS")
 ```
 
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Getting bridge strength and betweenness from pre-defined communities
+
+network_T1 <- as.igraph(network_T1)
+network_T2 <- as.igraph(network_T2)
+network_T3 <- as.igraph(network_T3)
+network_OLS <- as.igraph(network_OLS)
+# Manually create a mapping of vertex indices to the names
+vertex_labels <- c("BDI_1", "BDI_2", "BDI_3", "BDI_4", "BDI_5", "BDI_6", "BDI_7", 
+                   "BDI_8", "BDI_9", "BDI_10", "BDI_11", "BDI_12", "BDI_13", "BDI_14", 
+                   "BDI_15", "BDI_16", "BDI_17", "BDI_18", "BDI_19", "BDI_20",
+                   "CFS_1", "CFS_2_R", "CFS_3_R", "CFS_4", "CFS_5_R", "CFS_6", "CFS_7", 
+                                       "CFS_8", "CFS_9", "CFS_10_R", "CFS_11", "CFS_12", "LSAS_1", "LSAS_2", "LSAS_3", "LSAS_4", "LSAS_5", "LSAS_6", "LSAS_7", 
+                                        "LSAS_8", "LSAS_9", "LSAS_10", "LSAS_11", "LSAS_12", "LSAS_13", "LSAS_14", 
+                                        "LSAS_15", "LSAS_16", "LSAS_17", "LSAS_18", "LSAS_19", "LSAS_20", "LSAS_21", 
+                                        "LSAS_22", "LSAS_23", "LSAS_24")  # Complete this list as needed
+
+# Assign names to the vertices in the graph
+V(network_T1)$name <- vertex_labels
+communities_T1 <- list(
+  BDI = which(V(network_T1)$name %in% c("BDI_1", "BDI_2", "BDI_3", "BDI_4", "BDI_5", "BDI_6", "BDI_7", 
+                                       "BDI_8", "BDI_9", "BDI_10", "BDI_11", "BDI_12", "BDI_13", "BDI_14", 
+                                       "BDI_15", "BDI_16", "BDI_17", "BDI_18", "BDI_19", "BDI_20")),
+  
+  CFS = which(V(network_T1)$name %in% c("CFS_1", "CFS_2_R", "CFS_3_R", "CFS_4", "CFS_5_R", "CFS_6", "CFS_7", 
+                                       "CFS_8", "CFS_9", "CFS_10_R", "CFS_11", "CFS_12")),
+  
+  LSAS = which(V(network_T1)$name %in% c("LSAS_1", "LSAS_2", "LSAS_3", "LSAS_4", "LSAS_5", "LSAS_6", "LSAS_7", 
+                                        "LSAS_8", "LSAS_9", "LSAS_10", "LSAS_11", "LSAS_12", "LSAS_13", "LSAS_14", 
+                                        "LSAS_15", "LSAS_16", "LSAS_17", "LSAS_18", "LSAS_19", "LSAS_20", "LSAS_21", 
+                                        "LSAS_22", "LSAS_23", "LSAS_24"))
+)
+
+# For network_T2
+V(network_T2)$name <- vertex_labels
+communities_T2 <- list(
+  BDI = which(V(network_T2)$name %in% c("BDI_1", "BDI_2", "BDI_3", "BDI_4", "BDI_5", "BDI_6", "BDI_7", 
+                                       "BDI_8", "BDI_9", "BDI_10", "BDI_11", "BDI_12", "BDI_13", "BDI_14", 
+                                       "BDI_15", "BDI_16", "BDI_17", "BDI_18", "BDI_19", "BDI_20")),
+  
+  CFS = which(V(network_T2)$name %in% c("CFS_1", "CFS_2_R", "CFS_3_R", "CFS_4", "CFS_5_R", "CFS_6", "CFS_7", 
+                                       "CFS_8", "CFS_9", "CFS_10_R", "CFS_11", "CFS_12")),
+  
+  LSAS = which(V(network_T2)$name %in% c("LSAS_1", "LSAS_2", "LSAS_3", "LSAS_4", "LSAS_5", "LSAS_6", "LSAS_7", 
+                                        "LSAS_8", "LSAS_9", "LSAS_10", "LSAS_11", "LSAS_12", "LSAS_13", "LSAS_14", 
+                                        "LSAS_15", "LSAS_16", "LSAS_17", "LSAS_18", "LSAS_19", "LSAS_20", "LSAS_21", 
+                                        "LSAS_22", "LSAS_23", "LSAS_24"))
+)
+
+# For network_T3
+V(network_T3)$name <- vertex_labels
+communities_T3 <- list(
+  BDI = which(V(network_T3)$name %in% c("BDI_1", "BDI_2", "BDI_3", "BDI_4", "BDI_5", "BDI_6", "BDI_7", 
+                                       "BDI_8", "BDI_9", "BDI_10", "BDI_11", "BDI_12", "BDI_13", "BDI_14", 
+                                       "BDI_15", "BDI_16", "BDI_17", "BDI_18", "BDI_19", "BDI_20")),
+  
+  CFS = which(V(network_T3)$name %in% c("CFS_1", "CFS_2_R", "CFS_3_R", "CFS_4", "CFS_5_R", "CFS_6", "CFS_7", 
+                                       "CFS_8", "CFS_9", "CFS_10_R", "CFS_11", "CFS_12")),
+  
+  LSAS = which(V(network_T3)$name %in% c("LSAS_1", "LSAS_2", "LSAS_3", "LSAS_4", "LSAS_5", "LSAS_6", "LSAS_7", 
+                                        "LSAS_8", "LSAS_9", "LSAS_10", "LSAS_11", "LSAS_12", "LSAS_13", "LSAS_14", 
+                                        "LSAS_15", "LSAS_16", "LSAS_17", "LSAS_18", "LSAS_19", "LSAS_20", "LSAS_21", 
+                                        "LSAS_22", "LSAS_23", "LSAS_24"))
+)
+
+# For network_OLS
+V(network_OLS)$name <- vertex_labels
+communities_OLS <- list(
+  BDI = which(V(network_OLS)$name %in% c("BDI_1", "BDI_2", "BDI_3", "BDI_4", "BDI_5", "BDI_6", "BDI_7", 
+                                       "BDI_8", "BDI_9", "BDI_10", "BDI_11", "BDI_12", "BDI_13", "BDI_14", 
+                                       "BDI_15", "BDI_16", "BDI_17", "BDI_18", "BDI_19", "BDI_20")),
+  
+  CFS = which(V(network_OLS)$name %in% c("CFS_1", "CFS_2_R", "CFS_3_R", "CFS_4", "CFS_5_R", "CFS_6", "CFS_7", 
+                                       "CFS_8", "CFS_9", "CFS_10_R", "CFS_11", "CFS_12")),
+  
+  LSAS = which(V(network_OLS)$name %in% c("LSAS_1", "LSAS_2", "LSAS_3", "LSAS_4", "LSAS_5", "LSAS_6", "LSAS_7", 
+                                        "LSAS_8", "LSAS_9", "LSAS_10", "LSAS_11", "LSAS_12", "LSAS_13", "LSAS_14", 
+                                        "LSAS_15", "LSAS_16", "LSAS_17", "LSAS_18", "LSAS_19", "LSAS_20", "LSAS_21", 
+                                        "LSAS_22", "LSAS_23", "LSAS_24"))
+)
+
+
+# Now you can compute the bridge centrality
+bridge_T1 <- bridge(network_T1, communities = communities_T1)
+bridge_T2 <- bridge(network_T2, communities = communities_T1)
+bridge_T3 <- bridge(network_T3, communities = communities_T1)
+bridge_OLS <- bridge(network_OLS, communities = communities_T1)
+
+
+# Combine Bridge Strength and Bridge Betweenness into a dataframe
+bridge_T1 <- data.frame(
+  Node = names(bridge_T1$`Bridge Strength`),  # Using the node names
+  Bridge_Strength = bridge_T1$`Bridge Strength`,
+  Bridge_Betweenness = bridge_T1$`Bridge Betweenness`
+)
+write.csv(bridge_T1, file = "bridge_T1.csv", row.names = FALSE)
+
+# For T2
+bridge_T2 <- data.frame(
+  Node = names(bridge_T2$`Bridge Strength`),  # Using the node names
+  Bridge_Strength = bridge_T2$`Bridge Strength`,
+  Bridge_Betweenness = bridge_T2$`Bridge Betweenness`
+)
+write.csv(bridge_T2, file = "bridge_T2.csv", row.names = FALSE)
+
+# For T3
+bridge_T3 <- data.frame(
+  Node = names(bridge_T3$`Bridge Strength`),  # Using the node names
+  Bridge_Strength = bridge_T3$`Bridge Strength`,
+  Bridge_Betweenness = bridge_T3$`Bridge Betweenness`
+)
+write.csv(bridge_T3, file = "bridge_T3.csv", row.names = FALSE)
+
+# For OLS
+bridge_OLS <- data.frame(
+  Node = names(bridge_OLS$`Bridge Strength`),  # Using the node names
+  Bridge_Strength = bridge_OLS$`Bridge Strength`,
+  Bridge_Betweenness = bridge_OLS$`Bridge Betweenness`
+)
+write.csv(bridge_OLS, file = "bridge_OLS.csv", row.names = FALSE)
+```
 
 
 

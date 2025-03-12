@@ -372,9 +372,9 @@ suppressMessages(library(stringr))</code></pre>
 </div>
 <div id="load-dataset-and-preprocess" class="section level1">
 <h1>Load Dataset and Preprocess</h1>
-<pre class="r"><code>data_T1 &lt;- read_csv(&quot;df_1.csv&quot;)
-data_T2 &lt;- read_csv(&quot;df_2.csv&quot;)
-data_T3 &lt;- read_csv(&quot;df_3.csv&quot;)
+<pre class="r"><code>data_T1 &lt;- read_csv(&quot;df_1.csv&quot;, show_col_types = FALSE)
+data_T2 &lt;- read_csv(&quot;df_2.csv&quot;, show_col_types = FALSE)
+data_T3 &lt;- read_csv(&quot;df_3.csv&quot;, show_col_types = FALSE)
 
 data_T1 &lt;- na.omit(data_T1)
 data_T2 &lt;- na.omit(data_T2)
@@ -385,7 +385,7 @@ data_T3 &lt;- na.omit(data_T3)</code></pre>
 <pre class="r"><code># Load necessary libraries
 # Read in the data
 
-df &lt;- read_csv(&quot;OLS_ready.csv&quot;)
+df &lt;- read_csv(&quot;OLS_ready.csv&quot;, show_col_types = FALSE)
 
 change_trajectories &lt;- data.frame(matrix(ncol = ncol(data_T1), nrow = nrow(df)))
 colnames(change_trajectories) &lt;- colnames(data_T1)
@@ -698,6 +698,125 @@ get_strength_table(network_T1, &quot;T1&quot;)</code></pre>
 ## 54 LSAS_22 Strength -0.80604442
 ## 55 LSAS_23 Strength  0.03646815
 ## 56 LSAS_24 Strength -0.37775124</code></pre>
+<pre class="r"><code># Getting bridge strength and betweenness from pre-defined communities
+
+network_T1 &lt;- as.igraph(network_T1)
+network_T2 &lt;- as.igraph(network_T2)
+network_T3 &lt;- as.igraph(network_T3)
+network_OLS &lt;- as.igraph(network_OLS)
+# Manually create a mapping of vertex indices to the names
+vertex_labels &lt;- c(&quot;BDI_1&quot;, &quot;BDI_2&quot;, &quot;BDI_3&quot;, &quot;BDI_4&quot;, &quot;BDI_5&quot;, &quot;BDI_6&quot;, &quot;BDI_7&quot;, 
+                   &quot;BDI_8&quot;, &quot;BDI_9&quot;, &quot;BDI_10&quot;, &quot;BDI_11&quot;, &quot;BDI_12&quot;, &quot;BDI_13&quot;, &quot;BDI_14&quot;, 
+                   &quot;BDI_15&quot;, &quot;BDI_16&quot;, &quot;BDI_17&quot;, &quot;BDI_18&quot;, &quot;BDI_19&quot;, &quot;BDI_20&quot;,
+                   &quot;CFS_1&quot;, &quot;CFS_2_R&quot;, &quot;CFS_3_R&quot;, &quot;CFS_4&quot;, &quot;CFS_5_R&quot;, &quot;CFS_6&quot;, &quot;CFS_7&quot;, 
+                                       &quot;CFS_8&quot;, &quot;CFS_9&quot;, &quot;CFS_10_R&quot;, &quot;CFS_11&quot;, &quot;CFS_12&quot;, &quot;LSAS_1&quot;, &quot;LSAS_2&quot;, &quot;LSAS_3&quot;, &quot;LSAS_4&quot;, &quot;LSAS_5&quot;, &quot;LSAS_6&quot;, &quot;LSAS_7&quot;, 
+                                        &quot;LSAS_8&quot;, &quot;LSAS_9&quot;, &quot;LSAS_10&quot;, &quot;LSAS_11&quot;, &quot;LSAS_12&quot;, &quot;LSAS_13&quot;, &quot;LSAS_14&quot;, 
+                                        &quot;LSAS_15&quot;, &quot;LSAS_16&quot;, &quot;LSAS_17&quot;, &quot;LSAS_18&quot;, &quot;LSAS_19&quot;, &quot;LSAS_20&quot;, &quot;LSAS_21&quot;, 
+                                        &quot;LSAS_22&quot;, &quot;LSAS_23&quot;, &quot;LSAS_24&quot;)  # Complete this list as needed
+
+# Assign names to the vertices in the graph
+V(network_T1)$name &lt;- vertex_labels
+communities_T1 &lt;- list(
+  BDI = which(V(network_T1)$name %in% c(&quot;BDI_1&quot;, &quot;BDI_2&quot;, &quot;BDI_3&quot;, &quot;BDI_4&quot;, &quot;BDI_5&quot;, &quot;BDI_6&quot;, &quot;BDI_7&quot;, 
+                                       &quot;BDI_8&quot;, &quot;BDI_9&quot;, &quot;BDI_10&quot;, &quot;BDI_11&quot;, &quot;BDI_12&quot;, &quot;BDI_13&quot;, &quot;BDI_14&quot;, 
+                                       &quot;BDI_15&quot;, &quot;BDI_16&quot;, &quot;BDI_17&quot;, &quot;BDI_18&quot;, &quot;BDI_19&quot;, &quot;BDI_20&quot;)),
+  
+  CFS = which(V(network_T1)$name %in% c(&quot;CFS_1&quot;, &quot;CFS_2_R&quot;, &quot;CFS_3_R&quot;, &quot;CFS_4&quot;, &quot;CFS_5_R&quot;, &quot;CFS_6&quot;, &quot;CFS_7&quot;, 
+                                       &quot;CFS_8&quot;, &quot;CFS_9&quot;, &quot;CFS_10_R&quot;, &quot;CFS_11&quot;, &quot;CFS_12&quot;)),
+  
+  LSAS = which(V(network_T1)$name %in% c(&quot;LSAS_1&quot;, &quot;LSAS_2&quot;, &quot;LSAS_3&quot;, &quot;LSAS_4&quot;, &quot;LSAS_5&quot;, &quot;LSAS_6&quot;, &quot;LSAS_7&quot;, 
+                                        &quot;LSAS_8&quot;, &quot;LSAS_9&quot;, &quot;LSAS_10&quot;, &quot;LSAS_11&quot;, &quot;LSAS_12&quot;, &quot;LSAS_13&quot;, &quot;LSAS_14&quot;, 
+                                        &quot;LSAS_15&quot;, &quot;LSAS_16&quot;, &quot;LSAS_17&quot;, &quot;LSAS_18&quot;, &quot;LSAS_19&quot;, &quot;LSAS_20&quot;, &quot;LSAS_21&quot;, 
+                                        &quot;LSAS_22&quot;, &quot;LSAS_23&quot;, &quot;LSAS_24&quot;))
+)
+
+# For network_T2
+V(network_T2)$name &lt;- vertex_labels
+communities_T2 &lt;- list(
+  BDI = which(V(network_T2)$name %in% c(&quot;BDI_1&quot;, &quot;BDI_2&quot;, &quot;BDI_3&quot;, &quot;BDI_4&quot;, &quot;BDI_5&quot;, &quot;BDI_6&quot;, &quot;BDI_7&quot;, 
+                                       &quot;BDI_8&quot;, &quot;BDI_9&quot;, &quot;BDI_10&quot;, &quot;BDI_11&quot;, &quot;BDI_12&quot;, &quot;BDI_13&quot;, &quot;BDI_14&quot;, 
+                                       &quot;BDI_15&quot;, &quot;BDI_16&quot;, &quot;BDI_17&quot;, &quot;BDI_18&quot;, &quot;BDI_19&quot;, &quot;BDI_20&quot;)),
+  
+  CFS = which(V(network_T2)$name %in% c(&quot;CFS_1&quot;, &quot;CFS_2_R&quot;, &quot;CFS_3_R&quot;, &quot;CFS_4&quot;, &quot;CFS_5_R&quot;, &quot;CFS_6&quot;, &quot;CFS_7&quot;, 
+                                       &quot;CFS_8&quot;, &quot;CFS_9&quot;, &quot;CFS_10_R&quot;, &quot;CFS_11&quot;, &quot;CFS_12&quot;)),
+  
+  LSAS = which(V(network_T2)$name %in% c(&quot;LSAS_1&quot;, &quot;LSAS_2&quot;, &quot;LSAS_3&quot;, &quot;LSAS_4&quot;, &quot;LSAS_5&quot;, &quot;LSAS_6&quot;, &quot;LSAS_7&quot;, 
+                                        &quot;LSAS_8&quot;, &quot;LSAS_9&quot;, &quot;LSAS_10&quot;, &quot;LSAS_11&quot;, &quot;LSAS_12&quot;, &quot;LSAS_13&quot;, &quot;LSAS_14&quot;, 
+                                        &quot;LSAS_15&quot;, &quot;LSAS_16&quot;, &quot;LSAS_17&quot;, &quot;LSAS_18&quot;, &quot;LSAS_19&quot;, &quot;LSAS_20&quot;, &quot;LSAS_21&quot;, 
+                                        &quot;LSAS_22&quot;, &quot;LSAS_23&quot;, &quot;LSAS_24&quot;))
+)
+
+# For network_T3
+V(network_T3)$name &lt;- vertex_labels
+communities_T3 &lt;- list(
+  BDI = which(V(network_T3)$name %in% c(&quot;BDI_1&quot;, &quot;BDI_2&quot;, &quot;BDI_3&quot;, &quot;BDI_4&quot;, &quot;BDI_5&quot;, &quot;BDI_6&quot;, &quot;BDI_7&quot;, 
+                                       &quot;BDI_8&quot;, &quot;BDI_9&quot;, &quot;BDI_10&quot;, &quot;BDI_11&quot;, &quot;BDI_12&quot;, &quot;BDI_13&quot;, &quot;BDI_14&quot;, 
+                                       &quot;BDI_15&quot;, &quot;BDI_16&quot;, &quot;BDI_17&quot;, &quot;BDI_18&quot;, &quot;BDI_19&quot;, &quot;BDI_20&quot;)),
+  
+  CFS = which(V(network_T3)$name %in% c(&quot;CFS_1&quot;, &quot;CFS_2_R&quot;, &quot;CFS_3_R&quot;, &quot;CFS_4&quot;, &quot;CFS_5_R&quot;, &quot;CFS_6&quot;, &quot;CFS_7&quot;, 
+                                       &quot;CFS_8&quot;, &quot;CFS_9&quot;, &quot;CFS_10_R&quot;, &quot;CFS_11&quot;, &quot;CFS_12&quot;)),
+  
+  LSAS = which(V(network_T3)$name %in% c(&quot;LSAS_1&quot;, &quot;LSAS_2&quot;, &quot;LSAS_3&quot;, &quot;LSAS_4&quot;, &quot;LSAS_5&quot;, &quot;LSAS_6&quot;, &quot;LSAS_7&quot;, 
+                                        &quot;LSAS_8&quot;, &quot;LSAS_9&quot;, &quot;LSAS_10&quot;, &quot;LSAS_11&quot;, &quot;LSAS_12&quot;, &quot;LSAS_13&quot;, &quot;LSAS_14&quot;, 
+                                        &quot;LSAS_15&quot;, &quot;LSAS_16&quot;, &quot;LSAS_17&quot;, &quot;LSAS_18&quot;, &quot;LSAS_19&quot;, &quot;LSAS_20&quot;, &quot;LSAS_21&quot;, 
+                                        &quot;LSAS_22&quot;, &quot;LSAS_23&quot;, &quot;LSAS_24&quot;))
+)
+
+# For network_OLS
+V(network_OLS)$name &lt;- vertex_labels
+communities_OLS &lt;- list(
+  BDI = which(V(network_OLS)$name %in% c(&quot;BDI_1&quot;, &quot;BDI_2&quot;, &quot;BDI_3&quot;, &quot;BDI_4&quot;, &quot;BDI_5&quot;, &quot;BDI_6&quot;, &quot;BDI_7&quot;, 
+                                       &quot;BDI_8&quot;, &quot;BDI_9&quot;, &quot;BDI_10&quot;, &quot;BDI_11&quot;, &quot;BDI_12&quot;, &quot;BDI_13&quot;, &quot;BDI_14&quot;, 
+                                       &quot;BDI_15&quot;, &quot;BDI_16&quot;, &quot;BDI_17&quot;, &quot;BDI_18&quot;, &quot;BDI_19&quot;, &quot;BDI_20&quot;)),
+  
+  CFS = which(V(network_OLS)$name %in% c(&quot;CFS_1&quot;, &quot;CFS_2_R&quot;, &quot;CFS_3_R&quot;, &quot;CFS_4&quot;, &quot;CFS_5_R&quot;, &quot;CFS_6&quot;, &quot;CFS_7&quot;, 
+                                       &quot;CFS_8&quot;, &quot;CFS_9&quot;, &quot;CFS_10_R&quot;, &quot;CFS_11&quot;, &quot;CFS_12&quot;)),
+  
+  LSAS = which(V(network_OLS)$name %in% c(&quot;LSAS_1&quot;, &quot;LSAS_2&quot;, &quot;LSAS_3&quot;, &quot;LSAS_4&quot;, &quot;LSAS_5&quot;, &quot;LSAS_6&quot;, &quot;LSAS_7&quot;, 
+                                        &quot;LSAS_8&quot;, &quot;LSAS_9&quot;, &quot;LSAS_10&quot;, &quot;LSAS_11&quot;, &quot;LSAS_12&quot;, &quot;LSAS_13&quot;, &quot;LSAS_14&quot;, 
+                                        &quot;LSAS_15&quot;, &quot;LSAS_16&quot;, &quot;LSAS_17&quot;, &quot;LSAS_18&quot;, &quot;LSAS_19&quot;, &quot;LSAS_20&quot;, &quot;LSAS_21&quot;, 
+                                        &quot;LSAS_22&quot;, &quot;LSAS_23&quot;, &quot;LSAS_24&quot;))
+)
+
+
+# Now you can compute the bridge centrality
+bridge_T1 &lt;- bridge(network_T1, communities = communities_T1)
+bridge_T2 &lt;- bridge(network_T2, communities = communities_T1)
+bridge_T3 &lt;- bridge(network_T3, communities = communities_T1)
+bridge_OLS &lt;- bridge(network_OLS, communities = communities_T1)
+
+
+# Combine Bridge Strength and Bridge Betweenness into a dataframe
+bridge_T1 &lt;- data.frame(
+  Node = names(bridge_T1$`Bridge Strength`),  # Using the node names
+  Bridge_Strength = bridge_T1$`Bridge Strength`,
+  Bridge_Betweenness = bridge_T1$`Bridge Betweenness`
+)
+write.csv(bridge_T1, file = &quot;bridge_T1.csv&quot;, row.names = FALSE)
+
+# For T2
+bridge_T2 &lt;- data.frame(
+  Node = names(bridge_T2$`Bridge Strength`),  # Using the node names
+  Bridge_Strength = bridge_T2$`Bridge Strength`,
+  Bridge_Betweenness = bridge_T2$`Bridge Betweenness`
+)
+write.csv(bridge_T2, file = &quot;bridge_T2.csv&quot;, row.names = FALSE)
+
+# For T3
+bridge_T3 &lt;- data.frame(
+  Node = names(bridge_T3$`Bridge Strength`),  # Using the node names
+  Bridge_Strength = bridge_T3$`Bridge Strength`,
+  Bridge_Betweenness = bridge_T3$`Bridge Betweenness`
+)
+write.csv(bridge_T3, file = &quot;bridge_T3.csv&quot;, row.names = FALSE)
+
+# For OLS
+bridge_OLS &lt;- data.frame(
+  Node = names(bridge_OLS$`Bridge Strength`),  # Using the node names
+  Bridge_Strength = bridge_OLS$`Bridge Strength`,
+  Bridge_Betweenness = bridge_OLS$`Bridge Betweenness`
+)
+write.csv(bridge_OLS, file = &quot;bridge_OLS.csv&quot;, row.names = FALSE)</code></pre>
 </div>
 
 

@@ -1,0 +1,51 @@
+---
+title: "Getting Omega"
+author: "Madison Laprise"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, echo=TRUE, message=FALSE, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Load necessary packages
+library(tidyverse)
+library(psych)
+
+# Load datasets
+study1 <- read.csv("Study1_omega.csv")
+study2 <- read.csv("Study2_omega.csv")
+
+# Function to compute omega for a scale
+compute_omega <- function(data, pattern) {
+  # Select scale items based on pattern (regex or partial match)
+  scale_data <- data %>% select(matches(pattern))
+  # Remove rows with missing values in the scale
+  scale_data <- na.omit(scale_data)
+  # Calculate omega
+  omega_result <- omega(scale_data, plot = FALSE)
+  return(omega_result$omega.tot)  # Extract total omega
+}
+
+# Omega calculations for each measure in Study 1
+omega_cfs_study1 <- compute_omega(study1, "CFS")
+omega_lsas_study1 <- compute_omega(study1, "LSAS")
+omega_bdi_study1 <- compute_omega(study1, "BDI")
+
+# Omega calculations for each measure in Study 2
+omega_cfs_study2 <- compute_omega(study2, "CFS")
+omega_lsas_study2 <- compute_omega(study2, "LSAS")
+omega_bdi_study2 <- compute_omega(study2, "BDI")
+
+# Print results
+cat("Omega Values - Study 1:\n")
+cat("CFS: ", omega_cfs_study1, "\n")
+cat("LSAS:", omega_lsas_study1, "\n")
+cat("BDI: ", omega_bdi_study1, "\n\n")
+
+cat("Omega Values - Study 2:\n")
+cat("CFS: ", omega_cfs_study2, "\n")
+cat("LSAS:", omega_lsas_study2, "\n")
+cat("BDI: ", omega_bdi_study2, "\n")
+
+```
